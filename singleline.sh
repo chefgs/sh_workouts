@@ -1,5 +1,5 @@
 # Final working sigle line commands and script
-string="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla faucibus sagittis diam, id tempor leo auctor id. Fusce varius condimentum congue. Aenean quis dui in justo posuere consequat. Duis orci odio, dignissim ac ultrices id, elementum et nunc. Praesent congue congue justo et aliquam. Donec consectetur ultrices leo, eget rhoncus libero ornare ut. Vivamus et blandit sem. Sed vitae turpis ac nisl semper volutpat a tincidunt mi. In interdum metus a quam scelerisque nec dignissim nisi fringilla. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Phasellus nec augue augue, nec condimentum nulla. Sed in leo ante."
+string="This is a sample string that should contain repeated sample string sentence, that sentence should be repeated more than a time"
 
 echo $string | tr -c '[:alnum:]' '\n' | tr '[:upper:]' '[:lower:]' | sed '/^$/d' | sort | uniq -c | sort -nr
 # cat file.txt | tr -c '[:alnum:]' '\n' | tr '[:upper:]' '[:lower:]' | sed '/^$/d' | sort | uniq -c | sort -nr
