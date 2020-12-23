@@ -26,6 +26,10 @@ ls -l | tr -c '[:graph:]' '\n' | sed '/^$/d' | sort | uniq -c | sort -n
 # ll | tr -c '[:graph:]' '\n' | sed '/^$/d' | sort | uniq -c | sort -n | grep -w '\-rw'
 # ll | tr -c '[:graph:]' '\n' | sed '/^$/d' | sort | uniq -c | sort -n | grep 'drw'
 
-
+sed -n 'p' sed.txt | sed '$d'
+echo "******"
+sed -n 'p' sed.txt | sed '$d' | tr '\n' ' ' 
+echo "\n******"
+sed -n 'p' sed.txt | sed '$d' | tr ' ' '\n'
 
 
