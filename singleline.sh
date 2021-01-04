@@ -13,8 +13,10 @@ echo $string | tr -c '[:alnum:]' '\n' | tr '[:upper:]' '[:lower:]' | sed '/^$/d'
 # uniq -c                     -> Count the word occurrances and prefix lines by the number of occurrences
 # sort -nr                    -> Compare and sort according to string numerical value and print in reverse desc order 
 
-ls -l | tr -c '[:graph:]' '\n' | sed '/^$/d' | sort | uniq -c | sort -n
+echo $string | tr -c '[:alnum:]' '\n' | tr '[:upper:]' '[:lower:]' | sed '/^$/d' | sort | uniq -c | sort -nr | awk '{ print $1 " -> " $2}'
+# awk command			-> AWK command to print in required formatting
 
+ls -l | tr -c '[:graph:]' '\n' | sed '/^$/d' | sort | uniq -c | sort -n
 # Where,
 # tr -c '[:graph:]' '\n'      -> Convert the paragraph (all printable chars) into one column single word per line ('tr [OPTION]... SET1 [SET2]' -c use the complement of SET1)
 # tr '[:upper:]' '[:lower:]'  -> Convert upper case letters to lower case letters
