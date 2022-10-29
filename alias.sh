@@ -1,0 +1,18 @@
+echo "
+alias k='kubectl'
+alias kg='kubectl get'
+alias kgp='kubectl get pod'
+alias kd='kubectl describe'
+alias kpf='kubectl port-forward'
+alias gc='git checkout'
+alias gpo='git push origin'
+alias gb='git branch'
+alias gs='git status'
+alias ktx='kubectx'
+alias kns='kubens'
+alias c='clear'
+alias ap='ansible-playbook'
+alias ad='argocd'
+alias dc='docker-compose'
+alias dcdangling='docker rmi \$(docker images -f \"dangling=true\" -q)'
+" >> ~/.bashrc
