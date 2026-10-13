@@ -1,0 +1,283 @@
+# Table of Contents Generator from Headings
+
+## Overview
+
+The `toc-from-headings.sh` script processes a file containing heading lines and generates a markdown Table of Contents (TOC) with proper anchor link formatting. This is useful for creating navigation links in README files and documentation.
+
+## Purpose
+
+This script:
+- Reads heading text from a file
+- Converts headings to markdown anchor format
+- Generates markdown-formatted TOC entries
+- Makes it easy to create clickable TOC for markdown documents
+
+## Use Cases
+
+- Creating TOC for README files
+- Generating documentation navigation
+- Creating table of contents for markdown blog posts
+- Documentation sites that support markdown
+- Quick TOC generation for lengthy guides
+
+## Prerequisites
+
+- Bash or POSIX-compatible shell
+- Standard UNIX/Linux utilities (`cat`, `tr`, `echo`)
+- A text file containing headings (one per line)
+
+## Installation
+
+1. Navigate to the repository directory:
+```bash
+cd /path/to/sh_workouts
+```
+
+2. Make the script executable:
+```bash
+chmod +x toc-from-headings.sh
+```
+
+## Usage
+
+1. Create a file containing your headings (one per line):
+
+```bash
+cat > headings.txt << EOF
+Introduction
+Getting Started
+Installation
+Usage
+Examples
+Troubleshooting
+FAQ
+Contact
+EOF
+```
+
+2. Run the script with the filename as an argument:
+
+```bash
+./toc-from-headings.sh headings.txt
+```
+
+3. The script outputs markdown TOC format. Copy and paste into your README:
+
+```markdown
+- [Introduction](#introduction)
+- [Getting Started](#getting-started)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [Contact](#contact)
+```
+
+## Script Breakdown
+
+The script works as follows:
+
+```bash
+#!/bin/sh
+toc_filename=$1
+cat $toc_filename  | while read line
+do
+    field2=`echo $line | tr [:upper:] [:lower:] | tr " " "-"`
+    echo "- ["$line"]""(#"$field2")"
+done
+```
+
+### Step 1: Accept Filename
+
+```bash
+toc_filename=$1
+```
+
+Takes the filename as the first command-line argument.
+
+### Step 2: Read Each Line
+
+```bash
+cat $toc_filename | while read line
+do
+```
+
+Reads the file line by line, processing each heading.
+
+### Step 3: Convert to Anchor
+
+```bash
+field2=`echo $line | tr [:upper:] [:lower:] | tr " " "-"`
+```
+
+- `tr [:upper:] [:lower:]` - Converts all uppercase letters to lowercase
+- `tr " " "-"` - Replaces spaces with hyphens
+- Result: "Getting Started" becomes "getting-started"
+
+### Step 4: Generate TOC Entry
+
+```bash
+echo "- ["$line"]""(#"$field2")"
+```
+
+Generates markdown TOC entry in format: `- [Heading](#anchor)`
+
+## Usage Examples
+
+### Example 1: Basic Usage
+
+Create headings file:
+```bash
+cat > sections.txt << EOF
+Overview
+Features
+Installation
+Configuration
+Examples
+Conclusion
+EOF
+```
+
+Run the script:
+```bash
+./toc-from-headings.sh sections.txt
+```
+
+Output:
+```
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Conclusion](#conclusion)
+```
+
+### Example 2: Complex Headings with Multiple Words
+
+```bash
+cat > guide.txt << EOF
+Getting Started with Docker
+Advanced Kubernetes Configuration
+Best Practices for Production Deployment
+Troubleshooting Common Issues
+EOF
+```
+
+Output:
+```
+- [Getting Started with Docker](#getting-started-with-docker)
+- [Advanced Kubernetes Configuration](#advanced-kubernetes-configuration)
+- [Best Practices for Production Deployment](#best-practices-for-production-deployment)
+- [Troubleshooting Common Issues](#troubleshooting-common-issues)
+```
+
+### Example 3: Saving Output to File
+
+```bash
+./toc-from-headings.sh headings.txt > toc.txt
+cat toc.txt >> README.md
+```
+
+### Example 4: Using in a Complete Workflow
+
+```bash
+#!/bin/bash
+# Extract headings from markdown, generate TOC, add to beginning of file
+
+# Generate TOC from extracted headings
+./toc-from-headings.sh headings.txt > toc_section.txt
+
+# Create temporary file with TOC + original content
+cat toc_section.txt README.md > README_with_toc.md
+mv README_with_toc.md README.md
+```
+
+## Expected Output Format
+
+For each heading line in the input file:
+
+**Input line:** `Getting Started`
+
+**Output:** `- [Getting Started](#getting-started)`
+
+**Markdown renders as:** Getting Started (clickable link to #getting-started anchor)
+
+## How to Use Generated TOC in Markdown
+
+1. Add the TOC at the beginning or appropriate section of your markdown file
+2. Create corresponding heading sections with the same text:
+
+```markdown
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation](#installation)
+- [Usage](#usage)
+
+## Overview
+
+Content here...
+
+## Installation
+
+Content here...
+
+## Usage
+
+Content here...
+```
+
+When the document is rendered, clicking "Overview" jumps to the ## Overview section.
+
+## Notes
+
+- **Anchor generation**: Anchors are generated by converting headings to lowercase and replacing spaces with hyphens
+- **Special characters**: The script handles spaces but may not handle special characters properly. For complex headings, manual adjustment may be needed
+- **Heading order**: The script preserves the order of headings in the input file
+- **Markdown compatibility**: Generated TOC works with most markdown processors (GitHub, GitLab, Markdown.it, etc.)
+- **GitHub-specific**: GitHub automatically creates anchors for markdown headings, so you can use the generated TOC directly
+
+## Markdown Heading Syntax
+
+When creating sections in your markdown, use the heading syntax:
+
+```markdown
+# Top-level heading (H1)
+## Second-level heading (H2)
+### Third-level heading (H3)
+#### Fourth-level heading (H4)
+```
+
+The generated TOC links work with any level of heading.
+
+## Troubleshooting
+
+**Script not running:**
+- Ensure execute permissions: `chmod +x toc-from-headings.sh`
+- Verify bash/sh is available: `which bash`
+
+**Links not working in generated TOC:**
+- Verify heading text exactly matches the markdown heading text
+- Check that anchor format is correct (lowercase, hyphens instead of spaces)
+- Some markdown processors require specific anchor syntax
+
+**Special characters in headings causing issues:**
+- Manually edit the output to handle special characters
+- Remove or replace special characters in heading text
+- Use underscores or hyphens instead of special characters
+
+**File not found:**
+- Verify the headings file exists in the current directory
+- Use absolute path: `./toc-from-headings.sh /full/path/to/headings.txt`
+- Check file permissions: `ls -la headings.txt`
+
+## Related Scripts
+
+- [toc-from-markdown.sh](./toc-from-markdown.md) - Extract headings from markdown files
+- [toc.sh](./toc.md) - Another TOC generation script
+
+## Author
+
+Shell Workouts Repository
