@@ -29,6 +29,7 @@ A comprehensive collection of shell script utilities and educational examples fo
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Text Processing Collection](#text-processing-collection)
 - [Scripts Documentation](#scripts-documentation)
 - [Installation](#installation)
 - [Usage Examples](#usage-examples)
@@ -49,6 +50,60 @@ chmod +x script_name.sh
 # Run the script
 ./script_name.sh
 ```
+
+## Text Processing Collection
+
+A composable set of 23 scripts in [`text-processing/`](./text-processing/) for
+text and corpus work, built on one idea: **every stage of a modern GenAI
+preprocessing pipeline has a `tr` / `sed` / `awk` equivalent.** It generalises
+the word-frequency pipeline that `singleline.sh` demonstrates.
+
+📖 **[Read the full documentation](./docs/text-processing.md)** ·
+📋 **[`text-processing/MANIFEST`](./text-processing/MANIFEST)** for one line per script
+
+```bash
+chmod +x text-processing/*.sh
+text-processing/pipeline-demo.sh      # the whole collection, no API key needed
+```
+
+| Stage | Scripts |
+|---|---|
+| **Corpus hygiene** | `pii-redact.sh` · `normalize-text.sh` · `strip-markup.sh` |
+| **Tokenization & sizing** | `tokenize.sh` · `token-estimate.sh` |
+| **Vocabulary statistics** | `stopwords.sh` · `ngrams.sh` · `lexical-stats.sh` · `tfidf.sh` · `kwic.sh` · `zipf.sh` |
+| **Chunking for retrieval** | `chunk-text.sh` · `chunk-markdown.sh` |
+| **Dedup & similarity** | `dedup.sh` · `similarity.sh` · `vocab-diff.sh` |
+| **LLM input & output** | `extract-codeblocks.sh` · `to-jsonl.sh` · `jsonl-stats.sh` · `prompt-template.sh` · `diff-outputs.sh` |
+| **Calling a model** | `llm-call.sh` · `llm-batch.sh` |
+
+They chain, because each reads stdin or a file and writes to stdout:
+
+```bash
+./pii-redact.sh doc.md \
+  | ./normalize-text.sh --squeeze-blank \
+  | ./strip-markup.sh --markdown \
+  | ./chunk-text.sh --max-words 200 --format jsonl \
+  > chunks.jsonl
+```
+
+Exit code `1` is a *result* rather than an error, so they gate CI directly:
+
+```bash
+./pii-redact.sh --check doc.md            # 1 = sensitive data present
+./token-estimate.sh --budget 8000 p.txt   # 1 = will not fit the context
+./jsonl-stats.sh --strict data.jsonl      # 1 = malformed records
+```
+
+**Quality bar:** every script is `shellcheck -S style` clean, has a complete
+`--help`, and is covered by `tests/run-tests.sh` (113 assertions, no network,
+no API key). Both run in CI on every push.
+
+Two caveats the docs repeat rather than hide: token counts use the `chars/4`
+heuristic and are approximate (real tokenizers vary by 20%+ on code and
+non-English text), and `pii-redact.sh` is regex-based, so a clean run is not
+proof a document is safe to publish.
+
+---
 
 ## Scripts Documentation
 
@@ -264,6 +319,8 @@ chmod +x *.sh
 
 - Bash 4.0 or higher
 - Standard Unix/Linux utilities (tr, sed, sort, grep, etc.)
+- For the text-processing collection: `jq` (JSONL and API scripts), `git`
+  (`diff-outputs.sh`), `curl` (`llm-call.sh`)
 - For specific scripts:
   - `install_docker.sh`: Ubuntu system with sudo access
   - `install_docker.sh`: Internet connectivity

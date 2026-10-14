@@ -1,0 +1,50 @@
+# text-processing: one line per script, for cheap discovery.
+#
+# Every script accepts -h/--help, reads a FILE argument or stdin, and writes
+# to stdout, so they compose into pipelines. Options come before the file
+# argument (llm-call.sh is the exception and accepts either order).
+#
+# Statistics scripts (ngrams, lexical-stats, tfidf, zipf, similarity,
+# vocab-diff) take RAW TEXT and tokenize internally.
+# Filters (stopwords, dedup) take ONE TOKEN OR RECORD PER LINE and compose
+# with tokenize.sh.
+
+## 1. Corpus hygiene
+pii-redact.sh          Mask emails, keys, IPs, cards and PEM blocks; --check exits 1 on findings.
+normalize-text.sh      Fold smart quotes, strip control chars, rejoin words split across lines.
+strip-markup.sh        Reduce HTML or Markdown to the prose inside it.
+
+## 2. Tokenization and sizing
+tokenize.sh            Emit one word, sentence, paragraph or character per line; --count for frequencies.
+token-estimate.sh      Estimate tokens (chars/4) and cost; --budget N exits 1 when over.
+
+## 3. Vocabulary statistics
+stopwords.sh           Drop stopwords from a token stream (whole-line literal match).
+ngrams.sh              Count word n-grams via the paste-shift trick; -n 2 for bigrams.
+lexical-stats.sh       Tokens, types, type/token ratio, hapax, sentence length.
+tfidf.sh               Document frequency, idf and per-document tf-idf over a corpus.
+kwic.sh                Keyword in context: every hit with surrounding words.
+zipf.sh                Compare observed word frequencies with Zipf's prediction.
+
+## 4. Chunking for retrieval
+chunk-text.sh          Sentence-aligned chunks with configurable size and overlap.
+chunk-markdown.sh      One chunk per section, labelled with its heading path.
+
+## 5. Deduplication and similarity
+dedup.sh               Remove duplicate lines, order-preserving or sorted.
+similarity.sh          Jaccard and containment between two documents; --shingles for near-duplicates.
+vocab-diff.sh          Terms added and removed between two documents.
+
+## 6. LLM input and output
+extract-codeblocks.sh  Pull fenced code blocks out of Markdown or model output.
+to-jsonl.sh            Turn text into JSONL records, escaped with jq.
+jsonl-stats.sh         Validity and length report for a JSONL dataset.
+prompt-template.sh     Fill ${PLACEHOLDER} slots; missing values are an error, no eval.
+diff-outputs.sh        Word-level diff of two model outputs; exits 1 when they differ.
+
+## 7. Calling a model
+llm-call.sh            Call the Claude Messages API; key from the environment only.
+llm-batch.sh           Run llm-call.sh over many files, resumable, with a manifest.
+
+## Demo
+pipeline-demo.sh       Walk a document through the whole collection. No API key needed.

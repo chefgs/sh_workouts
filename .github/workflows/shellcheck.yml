@@ -1,0 +1,53 @@
+name: shell
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck --version
+
+      - name: Lint the text-processing collection
+        # Run from inside the directory so that the `# shellcheck
+        # source=lib/common.sh` directives resolve; -x makes shellcheck follow
+        # the sourced library instead of only warning that it cannot.
+        working-directory: text-processing
+        run: shellcheck -x -S style ./*.sh lib/common.sh
+
+      - name: Lint the test runner
+        run: shellcheck -S style tests/run-tests.sh
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          jq --version
+
+      - name: Run the test suite
+        # No network and no API key: llm-call.sh is exercised only via
+        # --dry-run, so this job never spends money.
+        run: tests/run-tests.sh
+
+      - name: Run the pipeline demo
+        run: text-processing/pipeline-demo.sh
