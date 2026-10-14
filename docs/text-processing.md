@@ -473,6 +473,193 @@ commentary and no API key.
 
 ---
 
+## Where these are useful
+
+Every scenario below was run against real input while writing this page; the
+numbers shown are what the scripts printed.
+
+| Use | Fit |
+|---|---|
+| Safety gates in git hooks and CI | Strong |
+| Cost and size control before a model call | Strong |
+| Checking LLM output (loops, code, regressions) | Strong |
+| Document and dataset pipelines (RAG, fine-tune prep, eval sets) | Strong |
+| Analysing text you already have (logs, tickets, docs) | Good |
+| Pieces of a code-development CLI | Partial (see [below](#building-a-cli-around-these)) |
+| Chunking source code | **Not a fit** |
+| Meaning-level similarity or semantic search | **Not a fit** |
+| Non-English text in the word-level scripts | **Not a fit yet** ([limitations](#known-limitations)) |
+
+### Safety gates
+
+**Block a commit that contains a secret.** `--check` exits `1` on findings, so
+it works as a git hook with no wrapper. This scans only the lines being
+committed, and prints the findings only when it blocks:
+
+```bash
+#!/usr/bin/env bash
+# .git/hooks/pre-commit
+if ! report=$(git diff --cached --diff-filter=ACM -U0 \
+      | grep '^+' | grep -v '^+++' \
+      | text-processing/pii-redact.sh --check 2>&1 >/dev/null); then
+    printf '%s\n' "$report" >&2
+    echo "commit blocked: staged changes contain sensitive data" >&2
+    exit 1
+fi
+```
+
+A staged JWT produced `jwt 1 / total 1 finding(s) / commit blocked` and exit
+`1`; a clean commit was silent and allowed. The same one-liner works as a CI
+step over documentation: `pii-redact.sh --check docs/*.md`.
+
+**Scrub before anything leaves the machine.** `llm-call.sh --redact` runs the
+prompt through `pii-redact.sh` first. The same applies to logs pasted into a
+bug report or a chat window.
+
+### Cost and size control
+
+**Skip the model call when the input will not fit.** A failed `--budget` is a
+real exit code, so it stops the pipeline:
+
+```bash
+tmp=$(mktemp)
+pii-redact.sh big.txt > "$tmp"
+if token-estimate.sh --budget 6000 "$tmp"; then
+    llm-call.sh "Summarise this" --file "$tmp"
+else
+    echo "over budget: chunk it first" >&2
+fi
+rm -f "$tmp"
+```
+
+**Price a bulk job before running it.**
+`token-estimate.sh --price-per-mtok 3.00 corpus/*.txt` prints a per-file and
+total estimate, so the cost of `llm-batch.sh` is known in advance.
+
+**Generate a PR description from a diff.** Redact, check the budget, build the
+request, and use `--dry-run` to inspect it without sending anything:
+
+```bash
+git diff --cached | pii-redact.sh | llm-call.sh --dry-run \
+    --system 'Write a PR description.'
+```
+
+### Checking model output
+
+**Detect a repetition loop.** `lexical-stats.sh` reports the type/token ratio
+(distinct words ÷ total words). A model stuck repeating itself scores very low:
+
+| Text | Tokens | TTR |
+|---|---|---|
+| "I am happy to help with that." repeated 30 times | 210 | **0.0333** |
+| One normal sentence | 19 | **0.8947** |
+
+TTR falls naturally as text gets longer, so compare outputs of similar length
+rather than applying one fixed threshold.
+
+**Lint a model's code before running it.** `extract-codeblocks.sh` pulls out
+the code, and a linter judges it. For the answer `for f in $(ls *.txt); do
+echo $f; done`, shellcheck flagged `SC2045 (error): Iterating over ls output is
+fragile`:
+
+```bash
+extract-codeblocks.sh --lang bash answer.md > block.sh
+shellcheck -s bash block.sh        # read the verdict, then decide
+```
+
+Extracted code is untrusted. Linting it is a first filter, not a safety proof.
+
+**Did changing the model or the prompt change the answer?** `diff-outputs.sh`
+exits `1` when outputs differ and `0` when identical, so it gates a regression
+test directly. On two answers differing only in `10→20` and `30→60`, it showed
+the changes inline (`[-10.-]{+20.+}`) and `--similarity` reported jaccard
+`0.7647`. This is worth running whenever you switch models.
+
+**Validate a dataset in CI.** `jsonl-stats.sh --strict data.jsonl` exits `1` on
+any malformed record or missing field, before you pay to embed or train on it.
+
+### Analysing text you already have
+
+**Log triage: what repeats most.** `dedup.sh --only-duplicates app.log` printed
+`3 ERROR db timeout on shard-3` and `2 INFO request ok`. Plain `dedup.sh`
+collapses the log to its distinct lines in their original order, and adding
+`| grep -v INFO` leaves just the distinct problems.
+
+**Support tickets: recurring complaints.** `ngrams.sh -n 2 --stopwords` over
+five tickets put `export button` first with a count of 3, ahead of every
+one-off phrase.
+
+**Documentation: terminology consistency.** `kwic.sh 'log in'` against
+`kwic.sh 'login'` shows every use of each form with surrounding words, which
+exposes places where the verb and the noun are mixed up.
+
+**Documentation: what changed between versions.** `vocab-diff.sh v1.md v2.md`
+listed `+ pipx`, `+ async`, `- pip`. Numbers are split on the dot, so
+`3.9 → 3.12` appears as `- 9` and `+ 12`.
+
+**Near-duplicate content.** `similarity.sh --shingles 5 a.txt b.txt` compares
+5-word sequences, so it finds copied passages rather than documents that merely
+share vocabulary. Two texts with the same words in a different order score
+`1.00` on words and `0.00` on 3-word shingles.
+
+**A quick smell test for a corpus.** `zipf.sh` and `lexical-stats.sh` show
+quickly whether a scraped corpus is natural language or mostly repeated
+boilerplate.
+
+### Building a CLI around these
+
+If you are building a code-development or file-processing tool, treat the
+scripts as a **reference implementation and a set of CI steps**, not as the
+engine. In a Go, Python or Node tool, every call forks a process, Windows
+support is awkward, and errors across a pipe are hard to handle.
+
+| Script | In a CLI |
+|---|---|
+| `pii-redact.sh` | Port the patterns; keep `--check` as a git hook or CI step as-is |
+| `token-estimate.sh` | Port (it is a few lines); the `--budget` exit-code contract is the useful part |
+| `extract-codeblocks.sh` | Port; the fence-toggling logic is simple |
+| `prompt-template.sh` | Port the single-pass, no-`eval`, missing-is-an-error behaviour |
+| `diff-outputs.sh` | Use as a CI step for prompt regression |
+| `llm-batch.sh` | Copy the pattern: resumable, per-item manifest, skip what is done |
+| `ngrams` `tfidf` `zipf` `lexical-stats` `stopwords` | Skip: language-analysis tools, not code tools |
+
+Port the logic and keep `tests/run-tests.sh` as the specification: 113
+assertions pin the behaviour, including the edge cases a fresh implementation
+tends to get wrong.
+
+The conventions are what transfer regardless of language:
+
+- **Exit `1` means "a result", not "a crash"**: over budget, secret found,
+  output changed. That is what makes a tool scriptable.
+- **A `--dry-run` that reads no credentials**, so anyone can inspect what
+  would be sent.
+- **Build JSON with a serializer**, never by joining strings; the failure is
+  silent until the first quote character.
+- **Secrets from the environment, never from arguments.** Command lines are
+  readable by other local users through `/proc`.
+- **A manifest with per-item status** on any batch operation, so a partial
+  failure is visible.
+
+### Where these are not a fit
+
+**Chunking source code.** The chunkers split on sentences and Markdown
+headings. Code has neither. Run on a Python file, `chunk-text.sh` put a
+method's signature in one chunk and its body in the next, and `tokenize.sh
+--words` split `get_user_by_id` into `get`, `user`, `by`, `id` while leaving
+`computeTotalPrice` whole. Embedding half a function returns half a function.
+Code needs syntax-aware chunking at function and class boundaries, from a
+parser such as tree-sitter.
+
+**Meaning-level similarity.** `similarity.sh` compares words. "car" and
+"automobile" share nothing, so they score `0`. Use embeddings when meaning
+matters; use this when you want exact and near-exact overlap.
+
+**Very large inputs.** `normalize-text.sh` reads its whole input into memory
+(use `--no-dehyphenate` to stream), and `dedup.sh` holds every distinct line in
+memory (use `--sort` instead).
+
+---
+
 ## Using these from an AI coding assistant
 
 `.claude/skills/text-processing/SKILL.md` registers the collection as a skill
@@ -493,6 +680,47 @@ they save tokens by not being wrong.
 Keep each script's `--help` short and accurate. The failure mode is an
 assistant reading a script's source to learn its flags — 300+ tokens, instantly
 worse than writing the one-liner it was avoiding.
+
+---
+
+## Known limitations
+
+**The word-level scripts do not handle non-ASCII text.** They share one
+tokenizer, built on `tr -cs '[:alnum:]'`, and GNU `tr` works on bytes. Accented
+letters are treated as separators and scripts without them are dropped:
+
+| Input | Tokenizer output |
+|---|---|
+| `café naïve résumé` | `caf` `na` `ve` `r` `sum` |
+| `こんにちは 世界` | nothing |
+| `Привет мир` | nothing |
+
+This was confirmed with no locale set and with `LC_ALL=C.utf8`, so setting a
+locale does not fix it. Affected, because they call the shared tokenizer:
+`tokenize.sh --words`, `ngrams.sh`, `lexical-stats.sh`, `tfidf.sh`, `zipf.sh`,
+`similarity.sh` and `vocab-diff.sh`. Most return empty or truncated results
+silently; `lexical-stats.sh` at least says `no tokens found`.
+
+Unaffected, because they work on lines, sentences or whole documents rather
+than words: `kwic.sh` (found `мир` correctly), `dedup.sh`, `chunk-text.sh`,
+`chunk-markdown.sh`, `pii-redact.sh`, `normalize-text.sh`, `strip-markup.sh`,
+`extract-codeblocks.sh`, `to-jsonl.sh`, `prompt-template.sh`,
+`diff-outputs.sh` and `llm-call.sh`.
+
+**Token estimates count bytes, not characters.** `token-estimate.sh` uses
+`wc -c`, so non-ASCII text is overestimated: `こんにちは` (5 characters, 16
+bytes with the newline) came out as 4 tokens. `jsonl-stats.sh` counts
+characters through `jq`, so the two scripts disagree on the same text. Even for
+English the `chars/4` rule is only a heuristic: real tokenizers vary by 20% or
+more on code and non-English text.
+
+**PII patterns are US-centric.** The phone and SSN formats are US-style, and
+only IPv4 addresses are recognised. Names, postal addresses and novel key
+formats are not detectable by pattern at all, so a clean result is not proof a
+document is safe to publish.
+
+**Options come before the file argument** in every script except
+`llm-call.sh`, which accepts either order.
 
 ---
 

@@ -8,6 +8,10 @@
 # vocab-diff) take RAW TEXT and tokenize internally.
 # Filters (stopwords, dedup) take ONE TOKEN OR RECORD PER LINE and compose
 # with tokenize.sh.
+#
+# Limits: the word-level scripts (tokenize --words, ngrams, lexical-stats,
+# tfidf, zipf, similarity, vocab-diff) are ASCII-only, and the chunkers are
+# for prose and Markdown, not source code. See docs/text-processing.md.
 
 ## 1. Corpus hygiene
 pii-redact.sh          Mask emails, keys, IPs, cards and PEM blocks; --check exits 1 on findings.

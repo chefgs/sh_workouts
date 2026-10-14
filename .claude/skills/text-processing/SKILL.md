@@ -43,8 +43,14 @@ read a script's source to learn its interface; `--help` is complete.
 
 ## Caveats to repeat, not hide
 
-- Token counts use the chars/4 heuristic. Real tokenizers vary by 20% or
-  more on code and non-English text. Fine for sizing, not for billing.
+- Token counts use the chars/4 heuristic over bytes. Real tokenizers vary by
+  20% or more on code and non-English text. Fine for sizing, not for billing.
+- The word-level scripts (`tokenize --words`, `ngrams`, `lexical-stats`,
+  `tfidf`, `zipf`, `similarity`, `vocab-diff`) drop non-ASCII text: `café`
+  becomes `caf`, and Japanese or Cyrillic yields nothing. Do not use them on
+  non-English input.
+- Do not use the chunkers on source code; they split on sentences and
+  headings and cut functions in half. Code needs a parser.
 - `pii-redact.sh` is regex-based. It cannot find names, addresses or novel
   key formats; a clean run is not proof a document is safe to publish.
 - `extract-codeblocks.sh` output is untrusted. Never pipe it into a shell.

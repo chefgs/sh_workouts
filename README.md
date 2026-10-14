@@ -98,10 +98,28 @@ Exit code `1` is a *result* rather than an error, so they gate CI directly:
 `--help`, and is covered by `tests/run-tests.sh` (113 assertions, no network,
 no API key). Both run in CI on every push.
 
-Two caveats the docs repeat rather than hide: token counts use the `chars/4`
-heuristic and are approximate (real tokenizers vary by 20%+ on code and
-non-English text), and `pii-redact.sh` is regex-based, so a clean run is not
-proof a document is safe to publish.
+**Where it fits.** Safety gates (a pre-commit hook that blocks leaked secrets),
+cost control (skip a model call that will not fit), checking model output
+(repetition loops, linting extracted code, prompt regressions), and
+document and dataset pipelines (RAG chunking, JSONL prep, deduplication). It
+is a reference implementation and a set of CI steps, not the engine for a
+shipped CLI. See [Where these are useful](./docs/text-processing.md#where-these-are-useful)
+for worked, tested examples.
+
+**Where it does not.** Chunking source code (the chunkers split on sentences and
+Markdown headings, so they cut functions in half), and meaning-level similarity
+(it compares words, not meaning).
+
+**Known limitations**, detailed in the
+[docs](./docs/text-processing.md#known-limitations):
+
+- The word-level scripts (`tokenize --words`, `ngrams`, `lexical-stats`,
+  `tfidf`, `zipf`, `similarity`, `vocab-diff`) **do not handle non-ASCII text**:
+  `café` becomes `caf`, and Japanese or Cyrillic text produces no tokens.
+- Token counts use the `chars/4` heuristic over *bytes*, so they are
+  approximate and overestimate non-ASCII text.
+- `pii-redact.sh` is regex-based and US-centric, so a clean run is not proof a
+  document is safe to publish.
 
 ---
 
